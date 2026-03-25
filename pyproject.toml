@@ -1,0 +1,33 @@
+ [build-system]
+ requires = ["hatchling>=1.25.0"]
+ build-backend = "hatchling.build"
+ 
+ [project]
+ name = "selfrag"
+ version = "0.1.0"
+ description = "Fully local RAG over PDFs (3GPP), Windows-first."
+ readme = "README.md"
+ requires-python = ">=3.10"
+ dependencies = [
+   "typer>=0.12.3",
+   "rich>=13.7.1",
+  "gradio>=4.0.0",
+   "pydantic>=2.7.4",
+   "pydantic-settings>=2.3.4",
+   "python-dotenv>=1.0.1",
+   "pymupdf>=1.24.7",
+   "sentence-transformers>=3.0.1",
+   "lancedb>=0.10.0",
+   "pyarrow>=16.1.0",
+   "numpy>=1.26.4",
+   "requests>=2.32.3",
+   "watchdog>=4.0.1",
+   "rank-bm25>=0.2.2",
+ ]
+ 
+ [project.scripts]
+rag = "selfrag.cli:app"
+rag-webui = "selfrag.webui:main"
+ 
+ [tool.hatch.build.targets.wheel]
+ packages = ["selfrag"]

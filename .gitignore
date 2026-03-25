@@ -1,0 +1,29 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local vector store (LanceDB). Never commit — rebuilt with `selfrag ingest`.
+index/lancedb/
+
+# Ingest manifest maps absolute PDF paths; machine-local.
+index/manifest.json
+
+pdfs/
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+*.pfx
