@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     openai_compat_api_key: str = "local"
 
     # Generation
+    response_mode: Literal["strict", "blended"] = "strict"
     max_tokens: int = 512
     temperature: float = 0.2
 

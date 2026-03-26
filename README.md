@@ -57,6 +57,7 @@ pip install -e .
 rag ingest pdfs
 rag status
 rag ask "What is the purpose of the PDCP layer?"
+rag ask --mode blended "Summarize PDCP and add missing background"
 ```
 
 ## Web UI (Gradio)
@@ -170,7 +171,29 @@ You can also set **`llm_provider`** to **`openai_compat`** and configure `openai
 You can configure embeddings, retrieval, chunking, and LLM settings via `selfrag.config.json` in the repo root.
 
 - **Precedence**: environment variables (including `.env`) override `selfrag.config.json`, which overrides code defaults.
-- **Other example fields**: `embedding_model`, `embedding_device`, `top_k`, `hybrid_bm25`, `chunk_size`, `reranker_model`, `reranker_device`, `max_tokens`, `temperature`.
+- **Other example fields**: `embedding_model`, `embedding_device`, `top_k`, `hybrid_bm25`, `chunk_size`, `reranker_model`, `reranker_device`, `max_tokens`, `temperature`, `response_mode`.
+
+### Response modes
+
+Use `response_mode` to control how answers combine retrieval context and model prior knowledge:
+
+- `strict` (default): answer from retrieved context only. If context is missing, the model should say it does not know.
+- `blended`: return two sections:
+  - **Grounded answer**: claims from retrieved context with `[n]` citations.
+  - **Additional background (model knowledge, not from retrieved docs)**: optional background clearly labeled as non-grounded.
+
+You can set the default in `selfrag.config.json`:
+
+```json
+"response_mode": "strict"
+```
+
+You can also override per CLI request:
+
+```bash
+rag ask --mode strict "..."
+rag ask --mode blended "..."
+```
 
 ### Embeddings: E5 prefixing
 

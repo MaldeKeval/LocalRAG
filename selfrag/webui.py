@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Literal, Optional, Tuple
 
 import gradio as gr
 
@@ -11,7 +11,7 @@ from .config import Settings, ensure_dirs, load_settings
 from .index import VectorIndex
 from .llm import generate
 from .llm_probe import probe_llm
-from .prompting import build_grounded_prompt
+from .prompting import build_prompt
 from .rerank import maybe_rerank
 from .retrieval import RetrievedChunk, retrieve
 
@@ -52,12 +52,14 @@ def answer_question(
     question: str,
     top_k: int,
     hybrid: bool,
+    mode: Literal["strict", "blended"],
     no_llm: bool,
 ) -> Tuple[str, List[List[Any]], str]:
     settings = load_settings()
     ensure_dirs(settings)
     settings.top_k = int(top_k)
     settings.hybrid_bm25 = bool(hybrid)
+    settings.response_mode = mode
 
     q = (question or "").strip()
     if not q:
@@ -79,7 +81,7 @@ def answer_question(
         prefix = ""
         if not probe.ok:
             prefix = f"**Warning:** {probe.message}\n\n---\n\n"
-        prompt = build_grounded_prompt(q, chunks)
+        prompt = build_prompt(q, chunks, mode=settings.response_mode)
         result = generate(settings, prompt)
         body = _normalize_latex_delimiters((result.text or "").strip()) or "(empty response)"
         answer_text = prefix + body
@@ -100,6 +102,7 @@ def answer_question(
                             "llm_provider": settings.llm_provider,
                             "ollama_model": settings.ollama_model,
                             "openai_compat_model": settings.openai_compat_model,
+                            "response_mode": settings.response_mode,
                         },
                         "chunks": [asdict(c) for c in chunks],
                     }
@@ -113,6 +116,7 @@ def answer_question(
 
 
 def build_ui() -> gr.Blocks:
+    default_settings = load_settings()
     with gr.Blocks(title="SelfRag") as demo:
         gr.Markdown(
             "## SelfRag (Local PDF RAG)\n"
@@ -134,11 +138,17 @@ def build_ui() -> gr.Blocks:
             top_k = gr.Slider(
                 minimum=1,
                 maximum=25,
-                value=load_settings().top_k,
+                value=default_settings.top_k,
                 step=1,
                 label="top_k (retrieval)",
             )
-            hybrid = gr.Checkbox(value=load_settings().hybrid_bm25, label="Hybrid BM25 retrieval")
+            hybrid = gr.Checkbox(value=default_settings.hybrid_bm25, label="Hybrid BM25 retrieval")
+            mode = gr.Radio(
+                choices=["strict", "blended"],
+                value=default_settings.response_mode,
+                label="Response mode",
+                info="strict = context-only, blended = grounded + model background",
+            )
             no_llm = gr.Checkbox(value=False, label="Skip LLM (evidence only)")
 
         answer = gr.Markdown(
@@ -159,12 +169,12 @@ def build_ui() -> gr.Blocks:
 
         ask_btn.click(
             fn=answer_question,
-            inputs=[question, top_k, hybrid, no_llm],
+            inputs=[question, top_k, hybrid, mode, no_llm],
             outputs=[answer, citations, debug],
         )
         question.submit(
             fn=answer_question,
-            inputs=[question, top_k, hybrid, no_llm],
+            inputs=[question, top_k, hybrid, mode, no_llm],
             outputs=[answer, citations, debug],
         )
 

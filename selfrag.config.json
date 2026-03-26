@@ -13,6 +13,7 @@
   "hybrid_bm25": false,
   "bm25_weight": 0.25,
   "max_tokens": 512,
+  "response_mode": "strict",
   "temperature": 0.2,
   "chunk_size": 1200,
   "chunk_overlap": 200,

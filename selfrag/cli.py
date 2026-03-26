@@ -4,7 +4,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import typer
 from rich.console import Console
@@ -19,7 +19,7 @@ from .index import VectorIndex
 from .ingest import ingest_pdf, iter_pdfs, load_manifest, save_manifest, update_manifest_for_pdf
 from .llm import generate
 from .llm_probe import probe_llm
-from .prompting import build_grounded_prompt
+from .prompting import build_prompt
 from .retrieval import retrieve
 from .rerank import maybe_rerank
 from .util import manifest_key_for_pdf, sha256_file
@@ -115,6 +115,7 @@ def status() -> None:
     table.add_row("Embedding model", settings.embedding_model)
     table.add_row("LLM provider", settings.llm_provider)
     table.add_row("LLM model", settings.ollama_model if settings.llm_provider == "ollama" else settings.openai_compat_model)
+    table.add_row("Response mode", settings.response_mode)
     probe = probe_llm(settings)
     table.add_row("LLM check", probe.status_line)
     console.print(table)
@@ -125,6 +126,11 @@ def ask(
     question: str,
     top_k: Optional[int] = typer.Option(None, help="Override top_k for retrieval."),
     hybrid: Optional[bool] = typer.Option(None, help="Enable BM25 hybrid retrieval for this query."),
+    mode: Optional[Literal["strict", "blended"]] = typer.Option(
+        None,
+        "--mode",
+        help="Response mode: strict (context-only) or blended (grounded + model background).",
+    ),
     debug_context: bool = typer.Option(False, help="Print retrieved context blocks."),
     no_llm: bool = typer.Option(False, help="Skip generation; only show citations/context."),
     max_context_chars: int = typer.Option(1600, help="Max characters to show per retrieved chunk in debug output."),
@@ -138,6 +144,8 @@ def ask(
         settings.top_k = int(top_k)
     if hybrid is not None:
         settings.hybrid_bm25 = bool(hybrid)
+    if mode is not None:
+        settings.response_mode = mode
 
     index = VectorIndex(settings)
     chunks = retrieve(settings, index, question)
@@ -159,7 +167,7 @@ def ask(
                     expand=False,
                 )
             )
-        prompt = build_grounded_prompt(question, chunks)
+        prompt = build_prompt(question, chunks, mode=settings.response_mode)
         result = generate(settings, prompt)
         answer_text = _safe_for_console(result.text or "").strip()
         if not answer_text:
