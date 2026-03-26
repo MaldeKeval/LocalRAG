@@ -141,7 +141,12 @@ def ask(
 
     index = VectorIndex(settings)
     chunks = retrieve(settings, index, question)
-    chunks = maybe_rerank(settings.reranker_model, question, chunks)
+    chunks = maybe_rerank(
+        settings.reranker_model,
+        question,
+        chunks,
+        device=getattr(settings, "reranker_device", "auto"),
+    )
 
     if not no_llm:
         probe = probe_llm(settings)

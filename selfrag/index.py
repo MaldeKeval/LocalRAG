@@ -46,7 +46,12 @@ class VectorIndex:
             return
 
         texts = [d.chunk_text for d in docs]
-        embeddings = embed_texts(self.settings.embedding_model, texts)
+        embeddings = embed_texts(
+            self.settings.embedding_model,
+            texts,
+            kind="passage",
+            device=getattr(self.settings, "embedding_device", "auto"),
+        )
         vector_dim = int(embeddings.shape[1])
         tbl = self._get_or_create_table(vector_dim)
 

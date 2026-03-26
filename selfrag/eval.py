@@ -7,7 +7,7 @@ from typing import Dict, List
 from rich.console import Console
 from rich.table import Table
 
-from .config import Settings, ensure_dirs
+from .config import Settings, ensure_dirs, load_settings
 from .index import VectorIndex
 from .retrieval import retrieve
 from .rerank import maybe_rerank
@@ -25,7 +25,7 @@ def _load_jsonl(path: Path) -> List[Dict]:
 
 def run_eval(questions_path: Path) -> int:
     console = Console()
-    settings = Settings()
+    settings = load_settings()
     ensure_dirs(settings)
 
     if not questions_path.exists():
@@ -50,7 +50,12 @@ def run_eval(questions_path: Path) -> int:
         must = [Path(x).name for x in (q.get("must_cite") or [])]
 
         chunks = retrieve(settings, index, question)
-        chunks = maybe_rerank(settings.reranker_model, question, chunks)
+        chunks = maybe_rerank(
+            settings.reranker_model,
+            question,
+            chunks,
+            device=getattr(settings, "reranker_device", "auto"),
+        )
 
         cited = [Path(c.source_path).name for c in chunks]
         hit = any(m in cited for m in must) if must else bool(chunks)

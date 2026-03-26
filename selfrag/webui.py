@@ -65,7 +65,12 @@ def answer_question(
 
     index = VectorIndex(settings)
     chunks = retrieve(settings, index, q)
-    chunks = maybe_rerank(settings.reranker_model, q, chunks)
+    chunks = maybe_rerank(
+        settings.reranker_model,
+        q,
+        chunks,
+        device=getattr(settings, "reranker_device", "auto"),
+    )
 
     if no_llm:
         answer_text = "LLM skipped. Showing retrieved evidence only."

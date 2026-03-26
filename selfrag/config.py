@@ -33,9 +33,11 @@ class Settings(BaseSettings):
 
     # Embeddings
     embedding_model: str = "intfloat/e5-base-v2"
+    embedding_device: Literal["auto", "cpu", "cuda"] = "auto"
 
     # Optional reranker
     reranker_model: Optional[str] = None  # e.g. "BAAI/bge-reranker-base"
+    reranker_device: Literal["auto", "cpu", "cuda"] = "auto"
 
     # LLM provider
     llm_provider: Literal["ollama", "openai_compat"] = "ollama"

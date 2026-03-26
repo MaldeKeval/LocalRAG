@@ -1,10 +1,9 @@
 # SelfRag (Local 3GPP PDF RAG)
 
-Fully local RAG over PDF specifications (3GPP), designed for Windows 11. Search and ask questions across your specs with answers grounded in retrieved text and citations—no cloud embedding or retrieval required.
+Fully local RAG. Search and ask questions across your specs with answers grounded in retrieved text and citations—no cloud embedding or retrieval required.
 
 ## Goals
 
-- **Scope**: 3GPP (and similar) specification PDFs, with new PDFs added over time.
 - **Trust**: Answers cite PDF filename and page range.
 - **Workflow**: CLI-first; optional Gradio web UI.
 - **Offline**: local embeddings, vector store, and generation (Ollama or llama.cpp server).
@@ -23,7 +22,7 @@ Fully local RAG over PDF specifications (3GPP), designed for Windows 11. Search 
 
 - **Python** 3.10+
 - **PDFs**: PyMuPDF
-- **Embeddings**: SentenceTransformers (CPU by default)
+- **Embeddings**: SentenceTransformers (CPU/GPU auto; E5 `query:`/`passage:` prefixing)
 - **Vector DB**: LanceDB (embedded, local)
 - **LLM**: Ollama or llama.cpp (OpenAI-compatible HTTP API)
 
@@ -58,12 +57,6 @@ pip install -e .
 rag ingest pdfs
 rag status
 rag ask "What is the purpose of the PDCP layer?"
-```
-
-If `rag` starts the web server unexpectedly, you are likely running a globally installed `rag.exe` instead of the virtualenv one. Use the venv executable explicitly:
-
-```bash
-.\.venv\Scripts\rag.exe ingest pdfs
 ```
 
 ## Web UI (Gradio)
@@ -177,7 +170,30 @@ You can also set **`llm_provider`** to **`openai_compat`** and configure `openai
 You can configure embeddings, retrieval, chunking, and LLM settings via `selfrag.config.json` in the repo root.
 
 - **Precedence**: environment variables (including `.env`) override `selfrag.config.json`, which overrides code defaults.
-- **Other example fields**: `embedding_model`, `top_k`, `hybrid_bm25`, `chunk_size`, `max_tokens`, `temperature`.
+- **Other example fields**: `embedding_model`, `embedding_device`, `top_k`, `hybrid_bm25`, `chunk_size`, `reranker_model`, `reranker_device`, `max_tokens`, `temperature`.
+
+### Embeddings: E5 prefixing
+
+If `embedding_model` is an **E5**-family model (e.g. `intfloat/e5-base-v2`), the app embeds using the recommended prefixes:
+
+- Queries: `query: ...`
+- PDF chunks: `passage: ...`
+
+This typically improves retrieval quality.
+
+### GPU usage (optional)
+
+Embeddings and reranking default to **`auto`** device selection:
+
+- If CUDA is available, use GPU.
+- Otherwise, use CPU.
+
+You can force behavior with:
+
+- `embedding_device`: `"auto" | "cpu" | "cuda"`
+- `reranker_device`: `"auto" | "cpu" | "cuda"`
+
+If GPU initialization fails (common with mismatched PyTorch/CUDA installs), the app falls back to CPU.
 
 ## Notes
 

@@ -17,5 +17,7 @@
   "chunk_size": 1200,
   "chunk_overlap": 200,
   "min_chunk_size": 200,
-  "reranker_model": null
+  "embedding_device": "auto",
+  "reranker_model": "BAAI/bge-reranker-large",
+  "reranker_device": "auto"
 }

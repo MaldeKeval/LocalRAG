@@ -29,7 +29,7 @@ def _tokenize(text: str) -> List[str]:
 
 
 def _dense_only(settings: Settings, index: VectorIndex, query: str) -> List[RetrievedChunk]:
-    q = embed_query(settings.embedding_model, query)
+    q = embed_query(settings.embedding_model, query, device=getattr(settings, "embedding_device", "auto"))
     rows = index.search(q, settings.top_k)
     out: List[RetrievedChunk] = []
     for r in rows:
