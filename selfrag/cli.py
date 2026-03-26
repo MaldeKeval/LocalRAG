@@ -16,7 +16,7 @@ from watchdog.observers import Observer
 
 from .config import Settings, ensure_dirs, load_settings
 from .index import VectorIndex
-from .ingest import ingest_pdf, iter_pdfs, load_manifest, save_manifest, update_manifest_for_pdf
+from .ingest import SUPPORTED_EXTENSIONS, ingest_document, iter_docs, load_manifest, save_manifest, update_manifest_for_pdf
 from .llm import generate
 from .llm_probe import probe_llm
 from .prompting import build_prompt
@@ -25,7 +25,7 @@ from .rerank import maybe_rerank
 from .util import manifest_key_for_pdf, sha256_file
 
 
-app = typer.Typer(add_completion=False, help="SelfRag: fully local PDF RAG (3GPP).")
+app = typer.Typer(add_completion=False, help="SelfRag: fully local document RAG (PDF/DOCX, 3GPP).")
 console = Console()
 
 def _safe_for_console(s: str) -> str:
@@ -37,25 +37,25 @@ def _safe_for_console(s: str) -> str:
 
 
 @app.command()
-def ingest(pdf_dir: Optional[Path] = typer.Argument(None, help="Folder containing PDFs.")) -> None:
+def ingest(pdf_dir: Optional[Path] = typer.Argument(None, help="Folder containing documents (.pdf/.docx).")) -> None:
     """
-    Ingest PDFs from a folder into the local index (incremental).
+    Ingest documents from a folder into the local index (incremental).
     """
     settings = load_settings()
     ensure_dirs(settings)
 
     target = pdf_dir or settings.pdf_dir
     if not target.exists():
-        raise typer.BadParameter(f"PDF directory not found: {target}")
+        raise typer.BadParameter(f"Document directory not found: {target}")
 
     index = VectorIndex(settings)
     total_chunks = 0
 
     target_root = target.resolve()
     manifest = load_manifest(settings.index_dir, target_root)
-    current_keys = {manifest_key_for_pdf(p, target_root) for p in iter_pdfs(target)}
+    current_keys = {manifest_key_for_pdf(p, target_root) for p in iter_docs(target)}
 
-    # Drop manifest + index rows for PDFs no longer under the ingest folder.
+    # Drop manifest + index rows for documents no longer under the ingest folder.
     pruned = False
     for k in list(manifest.keys()):
         if k not in current_keys:
@@ -67,28 +67,28 @@ def ingest(pdf_dir: Optional[Path] = typer.Argument(None, help="Folder containin
             manifest.pop(k, None)
 
     to_process: list[Path] = []
-    for pdf in iter_pdfs(target):
-        key = manifest_key_for_pdf(pdf, target_root)
-        file_hash = sha256_file(pdf)
+    for doc_path in iter_docs(target):
+        key = manifest_key_for_pdf(doc_path, target_root)
+        file_hash = sha256_file(doc_path)
         prev = manifest.get(key)
         if not prev or prev.get("file_hash") != file_hash:
-            to_process.append(pdf)
+            to_process.append(doc_path)
 
     if not to_process and not pruned:
-        console.print("[green]No new/changed PDFs found.[/green]")
+        console.print("[green]No new/changed documents found.[/green]")
         return
 
-    for pdf in to_process:
-        file_hash = sha256_file(pdf)
-        docs = ingest_pdf(settings, pdf, file_hash=file_hash, pdf_root=target_root)
+    for doc_path in to_process:
+        file_hash = sha256_file(doc_path)
+        docs = ingest_document(settings, doc_path, file_hash=file_hash, pdf_root=target_root)
         if not docs:
-            console.print(f"[yellow]No text extracted:[/yellow] {pdf}")
+            console.print(f"[yellow]No text extracted:[/yellow] {doc_path}")
             continue
 
         index.upsert_docs(docs)
-        update_manifest_for_pdf(manifest, pdf, target_root, file_hash=file_hash, doc_id=docs[0].doc_id)
+        update_manifest_for_pdf(manifest, doc_path, target_root, file_hash=file_hash, doc_id=docs[0].doc_id)
         total_chunks += len(docs)
-        console.print(f"[cyan]Ingested[/cyan] {pdf.name} ({len(docs)} chunks)")
+        console.print(f"[cyan]Ingested[/cyan] {doc_path.name} ({len(docs)} chunks)")
 
     save_manifest(settings.index_dir, manifest)
     console.print(f"[green]Done.[/green] Added/updated chunks: {total_chunks}")
@@ -107,9 +107,9 @@ def status() -> None:
     table = Table(title="SelfRag Status")
     table.add_column("Item")
     table.add_column("Value")
-    table.add_row("PDF folder", str(settings.pdf_dir))
+    table.add_row("Document folder", str(settings.pdf_dir))
     table.add_row("Index folder", str(settings.index_dir))
-    table.add_row("Tracked PDFs", str(len(manifest)))
+    table.add_row("Tracked documents", str(len(manifest)))
     table.add_row("Documents (unique doc_id)", str(index.unique_docs()))
     table.add_row("Chunks", str(index.count_chunks()))
     table.add_row("Embedding model", settings.embedding_model)
@@ -136,7 +136,7 @@ def ask(
     max_context_chars: int = typer.Option(1600, help="Max characters to show per retrieved chunk in debug output."),
 ) -> None:
     """
-    Ask a question grounded in your ingested PDFs.
+    Ask a question grounded in your ingested documents.
     """
     settings = load_settings()
     ensure_dirs(settings)
@@ -186,7 +186,7 @@ def ask(
     if chunks:
         cite = Table(title="Citations", show_header=True, header_style="bold")
         cite.add_column("#", justify="right", width=3)
-        cite.add_column("PDF", overflow="fold")
+        cite.add_column("Source", overflow="fold")
         cite.add_column("Pages", justify="right", width=10)
         for i, c in enumerate(chunks, start=1):
             cite.add_row(str(i), Path(c.source_path).name, f"{c.page_start}-{c.page_end}")
@@ -219,7 +219,7 @@ class _WatchHandler(FileSystemEventHandler):
         self.manifest = load_manifest(settings.index_dir, self.pdf_root)
 
     def _maybe_ingest(self, path: Path) -> None:
-        if path.suffix.lower() != ".pdf":
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             return
         if not path.exists():
             return
@@ -230,7 +230,7 @@ class _WatchHandler(FileSystemEventHandler):
         if prev and prev.get("file_hash") == file_hash:
             return
 
-        docs = ingest_pdf(self.settings, path, file_hash=file_hash, pdf_root=self.pdf_root)
+        docs = ingest_document(self.settings, path, file_hash=file_hash, pdf_root=self.pdf_root)
         if not docs:
             return
         self.index.upsert_docs(docs)
@@ -250,9 +250,9 @@ class _WatchHandler(FileSystemEventHandler):
 
 
 @app.command()
-def watch(pdf_dir: Optional[Path] = typer.Argument(None, help="Folder to watch for PDFs.")) -> None:
+def watch(pdf_dir: Optional[Path] = typer.Argument(None, help="Folder to watch for documents (.pdf/.docx).")) -> None:
     """
-    Watch a folder and ingest PDFs on change.
+    Watch a folder and ingest documents on change.
     """
     settings = load_settings()
     ensure_dirs(settings)

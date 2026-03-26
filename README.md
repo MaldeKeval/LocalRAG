@@ -1,10 +1,10 @@
-# SelfRag (Local PDF RAG)
+# SelfRag (Local PDF/DOCX RAG)
 
 ![License](https://img.shields.io/badge/license-unknown-lightgrey)
 ![CI](https://img.shields.io/badge/CI-passing-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
-SelfRag is a **fully local Retrieval-Augmented Generation (RAG)** tool: it searches your PDFs, retrieves the most relevant passages, and generates answers **grounded in those passages with citations** (PDF filename + page range).
+SelfRag is a **fully local Retrieval-Augmented Generation (RAG)** tool: it searches your PDF/DOCX documents, retrieves the most relevant passages, and generates answers **grounded in those passages with citations** (source filename + range).
 
 ## How to run
 
@@ -26,10 +26,10 @@ pip install -e .
 
 ### First run
 
-Put PDFs in `pdfs/` (or pass a folder path), then ingest and ask:
+Put documents (`.pdf` / `.docx`) in `sample_docs/` (or pass a folder path), then ingest and ask:
 
 ```bash
-rag ingest pdfs
+rag ingest sample_docs
 rag status
 rag ask "What is the purpose of the PDCP layer?"
 ```

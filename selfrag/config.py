@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     )
 
     # Paths
-    pdf_dir: Path = Field(default=Path("pdfs"))
+    pdf_dir: Path = Field(default=Path("sample_docs"))
     index_dir: Path = Field(default=Path("index"))
 
     # Chunking

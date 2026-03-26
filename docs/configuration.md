@@ -48,7 +48,7 @@ rag ask --mode blended "..."
 If `embedding_model` is an E5-family model (for example `intfloat/e5-base-v2`), embedding uses recommended prefixes:
 
 - Queries: `query: ...`
-- PDF chunks: `passage: ...`
+- Document chunks: `passage: ...`
 
 This typically improves retrieval quality.
 

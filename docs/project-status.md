@@ -21,12 +21,12 @@ Each JSONL line supports:
 
 - `id`
 - `question`
-- optional `must_cite` list of PDF basenames for simple hit@k checks
+- optional `must_cite` list of source basenames for simple hit@k checks
 
 ## Notes
 
-- Ingestion is incremental: new or changed PDFs are detected by file hash.
-- Answers include citations (PDF filename + page range).
+- Ingestion is incremental: new or changed PDF/DOCX files are detected by file hash.
+- Answers include citations (source filename + location range).
 
 ## Disclaimer
 

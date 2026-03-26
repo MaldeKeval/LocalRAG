@@ -5,7 +5,7 @@
  [project]
  name = "selfrag"
  version = "0.1.0"
- description = "Fully local RAG over PDFs (3GPP), Windows-first."
+description = "Fully local RAG over PDF/DOCX docs (3GPP), Windows-first."
  readme = "README.md"
  requires-python = ">=3.10"
  dependencies = [
@@ -15,6 +15,7 @@
    "pydantic>=2.7.4",
    "pydantic-settings>=2.3.4",
    "pymupdf>=1.24.7",
+  "python-docx>=1.1.2",
    "sentence-transformers>=3.0.1",
    "lancedb>=0.10.0",
    "pyarrow>=16.1.0",

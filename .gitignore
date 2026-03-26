@@ -17,7 +17,6 @@ index/lancedb/
 # Ingest manifest maps absolute PDF paths; machine-local.
 index/manifest.json
 
-pdfs/
 .env
 .env.*
 !.env.example
@@ -27,3 +26,4 @@ pdfs/
 id_rsa
 id_rsa.pub
 *.pfx
+*.docx

@@ -119,15 +119,15 @@ def build_ui() -> gr.Blocks:
     default_settings = load_settings()
     with gr.Blocks(title="SelfRag") as demo:
         gr.Markdown(
-            "## SelfRag (Local PDF RAG)\n"
-            "Ask a question grounded in your ingested PDFs. Answers include citations."
+            "## SelfRag (Local PDF/DOCX RAG)\n"
+            "Ask a question grounded in your ingested documents. Answers include citations."
         )
 
         with gr.Row():
             question = gr.Textbox(
                 label="Question",
                 lines=4,
-                placeholder="Ask a question about your 3GPP PDFs…",
+                placeholder="Ask a question about your 3GPP documents…",
             )
 
         with gr.Row():
@@ -159,7 +159,7 @@ def build_ui() -> gr.Blocks:
             ],
         )
         citations = gr.Dataframe(
-            headers=["#", "PDF", "Pages", "Title", "Score"],
+            headers=["#", "Source", "Range", "Title", "Score"],
             datatype=["number", "str", "str", "str", "number"],
             label="Citations",
             interactive=False,

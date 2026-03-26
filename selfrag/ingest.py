@@ -7,6 +7,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from .chunking import TextChunk, chunk_pages
 from .config import Settings
+from .docx import extract_docx_blocks
 from .pdf import extract_pdf_pages, pdf_title_from_path
 from .util import load_json, manifest_key_for_pdf, normalize_path, save_json, sha256_file
 
@@ -69,10 +70,14 @@ def save_manifest(index_dir: Path, manifest: Dict[str, Dict[str, str]]) -> None:
     save_json(index_dir / MANIFEST_NAME, manifest)
 
 
-def iter_pdfs(pdf_dir: Path) -> Iterable[Path]:
-    for p in pdf_dir.rglob("*.pdf"):
-        if p.is_file():
-            yield p
+SUPPORTED_EXTENSIONS = (".pdf", ".docx")
+
+
+def iter_docs(pdf_dir: Path) -> Iterable[Path]:
+    for ext in SUPPORTED_EXTENSIONS:
+        for p in pdf_dir.rglob(f"*{ext}"):
+            if p.is_file():
+                yield p
 
 
 def compute_doc_id(source_path: Path, file_hash: str) -> str:
@@ -86,30 +91,39 @@ def plan_ingest(settings: Settings, pdf_dir: Path) -> Tuple[List[Path], Dict[str
     root = pdf_dir.resolve()
     manifest = load_manifest(settings.index_dir, root)
     to_process: List[Path] = []
-    for pdf in iter_pdfs(pdf_dir):
-        file_hash = sha256_file(pdf)
-        key = manifest_key_for_pdf(pdf, root)
+    for doc_path in iter_docs(pdf_dir):
+        file_hash = sha256_file(doc_path)
+        key = manifest_key_for_pdf(doc_path, root)
         prev = manifest.get(key)
         if not prev or prev.get("file_hash") != file_hash:
-            to_process.append(pdf)
+            to_process.append(doc_path)
     return to_process, manifest
 
 
-def ingest_pdf(
+def _extract_units(doc_path: Path) -> List[tuple[int, str]]:
+    ext = doc_path.suffix.lower()
+    if ext == ".pdf":
+        pages = extract_pdf_pages(doc_path)
+        return [(p.page_number, p.text) for p in pages]
+    if ext == ".docx":
+        return extract_docx_blocks(doc_path)
+    raise ValueError(f"Unsupported file extension: {doc_path.suffix}")
+
+
+def ingest_document(
     settings: Settings,
-    pdf_path: Path,
+    doc_path: Path,
     *,
     file_hash: Optional[str] = None,
     pdf_root: Optional[Path] = None,
 ) -> List[IngestDoc]:
-    file_hash = file_hash or sha256_file(pdf_path)
+    file_hash = file_hash or sha256_file(doc_path)
     root = (pdf_root or settings.pdf_dir).resolve()
-    source_path = manifest_key_for_pdf(pdf_path, root)
-    pdf_title = pdf_title_from_path(pdf_path)
-    doc_id = compute_doc_id(pdf_path, file_hash)
+    source_path = manifest_key_for_pdf(doc_path, root)
+    pdf_title = pdf_title_from_path(doc_path)
+    doc_id = compute_doc_id(doc_path, file_hash)
 
-    pages = extract_pdf_pages(pdf_path)
-    page_pairs = [(p.page_number, p.text) for p in pages]
+    page_pairs = _extract_units(doc_path)
     chunks: List[TextChunk] = chunk_pages(
         page_pairs,
         chunk_size=settings.chunk_size,
@@ -149,4 +163,9 @@ def update_manifest_for_pdf(
         "doc_id": doc_id,
         "updated_at": _utc_now_iso(),
     }
+
+
+# Backward-compatible aliases for existing imports/callers.
+iter_pdfs = iter_docs
+ingest_pdf = ingest_document
 
